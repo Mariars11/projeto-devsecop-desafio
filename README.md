@@ -19,6 +19,7 @@ A pipeline está **incompleta**. Os steps de segurança precisam ser implementad
 - [ ] Secrets Scanning com **Gitleaks**
 - [ ] SAST com **Semgrep**
 - [ ] SCA com **Grype**
+- [ ] Assinatura do artefato com cosign
 - [ ] Deploy com **GitHub Pages**
 
 ## Como a pipeline funciona
