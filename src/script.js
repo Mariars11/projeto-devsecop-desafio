@@ -28,7 +28,9 @@ function addTask() {
 
     output.innerHTML = '<li>' + input.value + '</li>';
 
-    eval('console.log("Tarefa adicionada: ' + input.value + '")');
+    // CORRECAO SAST — Remove o uso inseguro de eval()
+    // Registra a tarefa sem executar codigo fornecido pelo usuario.
+    console.log('Tarefa adicionada:', input.value);
 
     input.value = '';
 }
