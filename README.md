@@ -22,19 +22,19 @@ O principal objetivo é aplicar o conceito de **Break the Build**, interrompendo
 - [x] Validar Gitleaks, Semgrep e Grype
 - [x] Corrigir o uso de `innerHTML` com entrada do usuário
 - [x] Corrigir a exposição de `err.stack`
-- [ ] Implementar assinatura real com Cosign
-- [ ] Verificar a assinatura do artefato
-- [ ] Finalizar o deploy no GitHub Pages
+- [x] Implementar assinatura real com Cosign
+- [x] Verificar a assinatura do artefato
+- [x] Finalizar o deploy no GitHub Pages
 
-Na execução **#14**, o job de build e segurança passou por todas as etapas. O job de verificação e deploy ainda apresentou erro.
+Na execução **#17**, os dois jobs da pipeline foram concluídos com sucesso, incluindo as verificações de segurança, a assinatura do artefato e o deploy.
 
 ## Pipeline
 
 O workflow está no arquivo `.github/workflows/pipeline.yml` e possui dois jobs:
 
-**Build, Segurança e Assinatura:** prepara os arquivos, executa os scanners, gera o artefato e realiza a etapa atual de assinatura.
+**Build, Segurança e Assinatura:** prepara os arquivos, executa os scanners, gera o artefato e realiza a assinatura digital.
 
-**Verificação e Deploy:** recebe o artefato e executa as etapas de verificação e publicação no GitHub Pages.
+**Verificação e Deploy:** recebe o artefato, verifica sua assinatura e publica a aplicação no GitHub Pages.
 
 ### 1. Gitleaks — Secrets Scanning
 
@@ -106,7 +106,7 @@ Depois da atualização, restou apenas um alerta relacionado à action `actions/
 
 A referência foi atualizada para `actions/download-artifact@v4.1.3`.
 
-Na execução **#14**, o Grype passou.
+Na execução **#14**, o Grype passou e continuou aprovado nas execuções seguintes.
 
 ### 4. Correções adicionais no JavaScript
 
@@ -137,17 +137,36 @@ Essas alterações foram realizadas como melhorias de segurança identificadas n
 
 ### 5. Artefato e Cosign
 
-Após as verificações, a pipeline gera o arquivo `artifact.tar` e seu hash SHA256.
+Após as verificações de segurança, a pipeline gera o arquivo `artifact.tar` e seu hash SHA256.
 
-A instalação do Cosign já funciona, mas a assinatura ainda é simulada. A assinatura real e sua verificação serão implementadas nas próximas etapas.
+O artefato é assinado digitalmente com Cosign, utilizando a identidade do GitHub Actions (OIDC).
+
+```bash
+cosign sign-blob artifact.tar \
+  --bundle artifact.sigstore.json \
+  --yes
+```
+
+No segundo job, a assinatura é verificada antes da publicação:
+
+```bash
+cosign verify-blob artifact.tar \
+  --bundle artifact.sigstore.json \
+  --certificate-identity-regexp "^https://github.com/${{ github.repository }}/.github/workflows/.*" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+```
+
+Se a verificação falhar, o deploy é bloqueado.
+
+Na execução **#17**, a assinatura e a verificação passaram com sucesso.
 
 ### 6. GitHub Pages
 
-A estrutura de deploy está no workflow.
+O GitHub Pages foi configurado para publicar a aplicação por meio do GitHub Actions.
 
-Na execução #14, o job **Build, Segurança e Assinatura** foi aprovado, mas **Verificação e Deploy** falhou.
+Inicialmente, o job de deploy falhava porque o Pages não estava configurado no repositório. Após ajustar essa configuração, o deploy passou a funcionar.
 
-O erro ainda será analisado.
+Na execução **#17**, os dois jobs foram concluídos com sucesso, incluindo a verificação da assinatura e a publicação da aplicação.
 
 ## Evidências
 
@@ -183,14 +202,22 @@ Commit do teste: [3788e57](https://github.com/Mariars11/projeto-devsecop-desafio
 
 O step de substituição dos marcadores passou, mas o histórico ainda continha secrets. Depois da limpeza com `git-filter-repo`, o Gitleaks também passou.
 
+### Cosign e Deploy
+
+**Execução:** [GitHub Actions — Pipeline #17](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38069937340)
+
+**Resultado:** assinatura real com Cosign, verificação do artefato e deploy no GitHub Pages aprovados.
+
 **Observação:** alguns links de commits antigos podem não funcionar após a reescrita do histórico Git. Foram mantidos como referência dos testes realizados.
 
-## Próximos passos
+## Resultado final
 
-Implementar a assinatura real do artefato com Cosign, ativar sua verificação e resolver o erro do job de deploy.
+A pipeline foi concluída com as verificações de segurança Gitleaks, Semgrep e Grype, assinatura digital com Cosign e deploy no GitHub Pages.
 
-Depois, validar a publicação no GitHub Pages e registrar o resultado final da pipeline.
+O conceito de **Break the Build** foi demonstrado durante os testes, quando as ferramentas identificaram vulnerabilidades e interromperam a execução.
+
+Após as correções, a pipeline **#17** foi aprovada.
 
 ## URL de produção
 
-Será adicionada após a publicação no GitHub Pages.
+[Gerenciador de Tarefas — GitHub Pages](https://mariars11.github.io/projeto-devsecop-desafio/)
