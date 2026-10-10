@@ -35,10 +35,12 @@ jobs:
           echo "Build OK!"
 
       # Step que procura credenciais expostas no repositorio e no historico do git - Break the build
+        # forçando analise do historico completo e não apenas do commit da run
       - name: 🔑 Secrets Scanning
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_BASE_REF: ""
 
       # ❌ PASSO A IMPLEMENTAR — SAST com Semgrep
       # Dica: instale com "pip install semgrep" e rode
