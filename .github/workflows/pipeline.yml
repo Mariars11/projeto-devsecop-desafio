@@ -24,9 +24,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      # ⚠️ Assim que remover segredos do código, passar pra cá
+      # Obs: não é uma alternativa tão robusta quanto um Vault por exemplo, mas já que o segredo estava em código....
+      # Dicas para cada variável:
+      #   - adicione um env
+      #   - crie um segredo correspondente no github
+      #   - insira uma referência para encontrá-la no código (exemplo CHAVE = "__CHAVE__")
+      #   - injete a variável na referência, usando um sed
       - name: 🔐 Inserir Secrets no JavaScript
+        #env:
+          #VAR: ${{ secrets.VAR  }}
         run: |
-          echo "Nenhum segredo a ser inserido no código"
+          echo "Nenhum segredo inserido no código por enquanto"
+      #   sed -i "s|__VAR__|$VAR|g" src/script.js
 
       - name: ⚙️ Build
         run: |
@@ -34,19 +44,31 @@ jobs:
           ls src/
           echo "Build OK!"
 
-      # Step que procura credenciais expostas no repositorio e no historico do git - Break the build
-        # forçando analise do historico completo e não apenas do commit da run
+      # SECRETS SCANNING COM GITLEAKS
+      # Utiliza a action oficial para detectar credenciais expostas.
+      # Se encontrar segredos, bloqueia a pipeline.
       - name: 🔑 Secrets Scanning
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_BASE_REF: ""
+
+      # VERIFICACAO DO HISTORICO COM GITLEAKS
+      # Complementa a action, analisando os commits anteriores.
+      # O --exit-code 1 faz a pipeline falhar se encontrar segredos.
+      - name: 🔎 Gitleaks - Historico Completo
+        run: |
+          # Instala o Gitleaks
+          VERSION=8.24.3
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+
+          # Analisa o historico completo do repositorio
+          /tmp/gitleaks git . --redact --exit-code 1
 
       # SAST COM SEMGREP
       # Analisa o codigo-fonte em busca de vulnerabilidades.
       # Verifica padroes inseguros, como XSS e funcoes perigosas.
       # O --error faz a pipeline falhar quando houver findings.
-
       - name: 🔍 SAST - Semgrep
         run: |
           # Instala o Semgrep
@@ -58,10 +80,8 @@ jobs:
       # SCA COM GRYPE
       # Analisa as dependencias do projeto em busca de
       # vulnerabilidades conhecidas (CVEs).
-      #
       # Se encontrar vulnerabilidades MEDIUM, HIGH ou CRITICAL,
       # o Grype retorna erro e bloqueia a pipeline.
-
       - name: 📦 SCA - Grype
         run: |
           # Gera o arquivo que registra as dependencias do projeto
@@ -73,6 +93,16 @@ jobs:
           # Analisa as dependencias e bloqueia vulnerabilidades medias ou maiores
           grype dir:. --fail-on medium
 
+      # ── Empacota o site em um artefato tar (formato que o Pages consome)
+      - name: 📦 Empacotar artefato do site
+        run: |
+          tar \
+            --dereference --hard-dereference \
+            -C src \
+            -cvf artifact.tar \
+            --exclude=.git --exclude=.github \
+            .
+
       # ── Calcula o hash do artefato
       - name: 🔢 Hash do artefato
         run: |
@@ -83,7 +113,7 @@ jobs:
       - name: ✍️ Instalar Cosign
         uses: sigstore/cosign-installer@v3
 
-      # ⚠️ MOCK DE ASSINATURA
+      # ❌ PASSO A IMPLEMENTAR — Assinatura via Cosign
       # Este passo NÃO assina de verdade — ele gera um bundle falso, só para
       # demonstração.
       #
@@ -125,14 +155,14 @@ jobs:
       - name: ✍️ Instalar Cosign
         uses: sigstore/cosign-installer@v3
 
-      # Usa o Cosign para validar assinatura do artefato
-      - name: 🔎 Verificar assinatura do artefato
-        run: |
-          cosign verify-blob artifact.tar \
-            --bundle artifact.sigstore.json \
-            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/.github/workflows/.*" \
-            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
-          echo "Assinatura válida — artefato íntegro e autêntico."
+      # ⚠️ Usa o Cosign para validar assinatura do artefato - descomentar após assinatura
+      # - name: 🔎 Verificar assinatura do artefato
+      #  run: |
+      #    cosign verify-blob artifact.tar \
+      #      --bundle artifact.sigstore.json \
+      #      --certificate-identity-regexp "^https://github.com/${{ github.repository }}/.github/workflows/.*" \
+      #      --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+      #    echo "Assinatura válida — artefato íntegro e autêntico."
 
       # Descompacta o site para publicar
       - name: 📂 Extrair site verificado
