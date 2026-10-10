@@ -119,16 +119,16 @@ jobs:
       - name: ✍️ Instalar Cosign
         uses: sigstore/cosign-installer@v3
 
-      # ❌ PASSO A IMPLEMENTAR — Assinatura via Cosign
-      # Este passo NÃO assina de verdade — ele gera um bundle falso, só para
-      # demonstração.
-      #
-      # Dica da assinatura real:
-      #   cosign sign-blob artifact.tar --bundle artifact.sigstore.json --yes
+      # ASSINATURA REAL COM COSIGN
+      # Assina o artefato usando a identidade do GitHub Actions (OIDC).
+      # Gera um bundle com as informacoes necessarias para verificacao.
       - name: ✍️ Assinar artefato
         run: |
-          echo '{ "mock": "assinatura-invalida-para-demonstracao" }' > artifact.sigstore.json
-          echo "Assinatura MOCK gerada."
+          cosign sign-blob artifact.tar \
+            --bundle artifact.sigstore.json \
+            --yes
+
+          echo "Artefato assinado com sucesso."
 
       # ── Publica o artefato + bundle de assinatura para o próximo job
       - name: ⬆️ Upload do artefato assinado
@@ -161,15 +161,18 @@ jobs:
       - name: ✍️ Instalar Cosign
         uses: sigstore/cosign-installer@v3
 
-      # ⚠️ Usa o Cosign para validar assinatura do artefato - descomentar após assinatura
-      # - name: 🔎 Verificar assinatura do artefato
-      #  run: |
-      #    cosign verify-blob artifact.tar \
-      #      --bundle artifact.sigstore.json \
-      #      --certificate-identity-regexp "^https://github.com/${{ github.repository }}/.github/workflows/.*" \
-      #      --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
-      #    echo "Assinatura válida — artefato íntegro e autêntico."
+            # VERIFICACAO DA ASSINATURA COM COSIGN
+      # Confirma que o artefato foi assinado pelo workflow do repositorio.
+      # Se a verificacao falhar, a pipeline nao realiza o deploy.
+      - name: 🔎 Verificar assinatura do artefato
+        run: |
+          cosign verify-blob artifact.tar \
+            --bundle artifact.sigstore.json \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/.github/workflows/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
 
+          echo "Assinatura valida — artefato integro e autentico."
+          
       # Descompacta o site para publicar
       - name: 📂 Extrair site verificado
         run: |
