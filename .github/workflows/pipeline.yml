@@ -42,11 +42,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_BASE_REF: ""
 
-      # ❌ PASSO A IMPLEMENTAR — SAST com Semgrep
-      # Dica: instale com "pip install semgrep" e rode
-      #   semgrep scan --config auto --config p/xss --error src/
+      # SAST COM SEMGREP
+      # Analisa o codigo-fonte em busca de vulnerabilidades.
+      # Verifica padroes inseguros, como XSS e funcoes perigosas.
+      # O --error faz a pipeline falhar quando houver findings.
+
       - name: 🔍 SAST - Semgrep
-        run: echo "TODO - implemente o SAST com Semgrep aqui"
+        run: |
+          # Instala o Semgrep
+          pip install semgrep
+
+          # Analisa o codigo da pasta src
+          semgrep scan --config auto --config p/xss --error src/
 
       # ❌ PASSO A IMPLEMENTAR — SCA com Grype
       # Dica: primeiro, gere o package-lock pelo npm:
