@@ -48,7 +48,6 @@ jobs:
       # O --error faz a pipeline falhar quando houver findings.
 
       - name: 🔍 SAST - Semgrep
-        continue-on-error: true # apenas para testar o proximo passo
         run: |
           # Instala o Semgrep
           pip install semgrep
