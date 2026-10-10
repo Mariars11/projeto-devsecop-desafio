@@ -16,9 +16,12 @@ fetch('db.json')
             list.appendChild(li);
         });
     })
-    .catch(err => {        
+   .catch(err => {
+        // Registra o erro para depuracao sem exibir detalhes na pagina.
+        console.error('Erro ao carregar tarefas:', err);
+
         document.getElementById('db-status').innerText =
-            'Erro interno: ' + err.stack;
+            'Nao foi possivel carregar as tarefas.';
     });
 
 // Adiciona nova tarefa na tela
@@ -26,7 +29,10 @@ function addTask() {
     const input = document.getElementById('new-task');
     const output = document.getElementById('output');
 
-    output.innerHTML = '<li>' + input.value + '</li>';
+    // Evita XSS: trata a entrada do usuario como texto, nao como HTML.
+    const li = document.createElement('li');
+    li.textContent = input.value;
+    output.replaceChildren(li);
 
     // CORRECAO SAST — Remove o uso inseguro de eval()
     // Registra a tarefa sem executar codigo fornecido pelo usuario.
