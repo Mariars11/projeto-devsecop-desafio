@@ -28,5 +28,3 @@ A pipeline está **incompleta**. Os steps de segurança precisam ser implementad
 
 ## URL de Produção
 > Adicione aqui o link do GitHub Pages após o deploy.
-
-## Forçando run da action

@@ -1,5 +1,5 @@
-const API_KEY = "REMOVIDO_DO_HISTORICO";
-const DB_PASSWORD = "REMOVIDO_DO_HISTORICO";
+/*const API_KEY = "REMOVIDO_DO_HISTORICO";
+const DB_PASSWORD = "REMOVIDO_DO_HISTORICO";*/
 
 // Busca tarefas do "banco de dados"
 fetch('db.json')
