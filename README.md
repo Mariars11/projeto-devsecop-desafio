@@ -143,27 +143,12 @@ Commit do teste: [9aafa96](https://github.com/Mariars11/projeto-devsecop-desafio
 
 Commit do teste: [452d2f1](https://github.com/Mariars11/projeto-devsecop-desafio/commit/452d2f1725c20b062cd929611122a622f0374336)
 
-![Semgrep detectando eval](evidencias/semgrep-eval.png)
-
-**Após a correção — 0 findings:**
-
-![Semgrep aprovado](evidencias/semgrep-aprovado.png)
-
 ### Grype
 
 **Detecção das dependências vulneráveis:** [Execução no GitHub Actions](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38060743966)
 
 Commit do teste: [3788e57](https://github.com/Mariars11/projeto-devsecop-desafio/commit/3788e57d038f6f0309e3ba9b3faf6854e4d1c4b6)
 
-![Grype detectando vulnerabilidades](evidencias/grype-vulnerabilidades.png)
-
-**Alerta restante na action:**
-
-![Grype detectando action vulnerável](evidencias/grype-action-vulneravel.png)
-
-**Após as correções — execução #14:**
-
-![Grype aprovado](evidencias/grype-aprovado.png)
 
 ### Gerenciamento de Secrets
 
