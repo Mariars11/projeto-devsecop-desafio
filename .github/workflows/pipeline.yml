@@ -24,19 +24,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ⚠️ Assim que remover segredos do código, passar pra cá
-      # Obs: não é uma alternativa tão robusta quanto um Vault por exemplo, mas já que o segredo estava em código....
-      # Dicas para cada variável:
-      #   - adicione um env
-      #   - crie um segredo correspondente no github
-      #   - insira uma referência para encontrá-la no código (exemplo CHAVE = "__CHAVE__")
-      #   - injete a variável na referência, usando um sed
+      # GERENCIAMENTO DE SECRETS COM GITHUB ACTIONS
+      # Remove as credenciais expostas do codigo-fonte.
+      # Recupera os valores configurados nos GitHub Secrets.
+      # Utiliza o sed para substituir os marcadores no JavaScript.
+      # Para o desafio, usamos valores ficticios, pois o site sera publico.
       - name: 🔐 Inserir Secrets no JavaScript
-        #env:
-          #VAR: ${{ secrets.VAR  }}
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          echo "Nenhum segredo inserido no código por enquanto"
-      #   sed -i "s|__VAR__|$VAR|g" src/script.js
+          # Verifica se os secrets foram configurados
+          test -n "$API_KEY" || { echo "API_KEY nao configurada"; exit 1; }
+          test -n "$DB_PASSWORD" || { echo "DB_PASSWORD nao configurada"; exit 1; }
+
+          # Substitui os marcadores pelos valores de demonstracao
+          sed -i "s|__API_KEY__|$API_KEY|g" src/script.js
+          sed -i "s|__DB_PASSWORD__|$DB_PASSWORD|g" src/script.js
+
+          echo "Valores de demonstracao inseridos com sucesso"
 
       - name: ⚙️ Build
         run: |

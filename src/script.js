@@ -1,5 +1,7 @@
-const API_KEY = "REMOVIDO_DO_HISTORICO";
-const DB_PASSWORD = "REMOVIDO_DO_HISTORICO";
+// Referencias substituidas pelo GitHub Actions durante o build.
+// Utilizar somente valores ficticios, pois este JS sera publico.
+const API_KEY = "__API_KEY__";
+const DB_PASSWORD = "__DB_PASSWORD__";
 
 // Busca tarefas do "banco de dados"
 fetch('db.json')
