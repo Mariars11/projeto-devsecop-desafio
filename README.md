@@ -20,7 +20,8 @@ O principal objetivo é aplicar o conceito de **Break the Build**, interrompendo
 - [x] Atualizar as dependências vulneráveis
 - [x] Corrigir a action vulnerável do GitHub Actions
 - [x] Validar Gitleaks, Semgrep e Grype
-- [ ] Corrigir os pontos restantes do JavaScript
+- [x] Corrigir o uso de `innerHTML` com entrada do usuário
+- [x] Corrigir a exposição de `err.stack`
 - [ ] Implementar assinatura real com Cosign
 - [ ] Verificar a assinatura do artefato
 - [ ] Finalizar o deploy no GitHub Pages
@@ -107,13 +108,40 @@ A referência foi atualizada para `actions/download-artifact@v4.1.3`.
 
 Na execução **#14**, o Grype passou.
 
-### 4. Artefato e Cosign
+### 4. Correções adicionais no JavaScript
+
+Durante a revisão manual do `src/script.js`, foram identificados outros dois pontos de segurança que não haviam sido apontados pelo Semgrep.
+
+**Uso de `innerHTML`:** a entrada digitada pelo usuário era inserida diretamente no HTML da página, podendo permitir XSS.
+
+A correção foi utilizar `createElement()` e `textContent` para exibir o texto sem interpretá-lo como HTML.
+
+```javascript
+const li = document.createElement('li');
+li.textContent = input.value;
+output.replaceChildren(li);
+```
+
+**Exposição de `err.stack`:** os detalhes internos de erros eram exibidos diretamente na página.
+
+A correção foi registrar o erro no console e mostrar uma mensagem simples ao usuário.
+
+```javascript
+console.error('Erro ao carregar tarefas:', err);
+
+document.getElementById('db-status').innerText =
+    'Nao foi possivel carregar as tarefas.';
+```
+
+Essas alterações foram realizadas como melhorias de segurança identificadas na revisão do código.
+
+### 5. Artefato e Cosign
 
 Após as verificações, a pipeline gera o arquivo `artifact.tar` e seu hash SHA256.
 
 A instalação do Cosign já funciona, mas a assinatura ainda é simulada. A assinatura real e sua verificação serão implementadas nas próximas etapas.
 
-### 5. GitHub Pages
+### 6. GitHub Pages
 
 A estrutura de deploy está no workflow.
 
@@ -149,7 +177,6 @@ Commit do teste: [452d2f1](https://github.com/Mariars11/projeto-devsecop-desafio
 
 Commit do teste: [3788e57](https://github.com/Mariars11/projeto-devsecop-desafio/commit/3788e57d038f6f0309e3ba9b3faf6854e4d1c4b6)
 
-
 ### Gerenciamento de Secrets
 
 [Execução de teste no GitHub Actions](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38063731291)
@@ -160,9 +187,9 @@ O step de substituição dos marcadores passou, mas o histórico ainda continha 
 
 ## Próximos passos
 
-Ainda precisamos corrigir o uso de `innerHTML` com entrada do usuário e a exposição de `err.stack` no JavaScript.
+Implementar a assinatura real do artefato com Cosign, ativar sua verificação e resolver o erro do job de deploy.
 
-Depois, vamos implementar a assinatura real com Cosign, ativar sua verificação e resolver o erro do deploy.
+Depois, validar a publicação no GitHub Pages e registrar o resultado final da pipeline.
 
 ## URL de produção
 
