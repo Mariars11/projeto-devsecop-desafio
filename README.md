@@ -4,105 +4,109 @@
 
 Projeto desenvolvido para o desafio do módulo de DevSecOps da ADA Tech.
 
-A proposta é implementar uma pipeline no GitHub Actions com ferramentas de segurança, identificar vulnerabilidades, corrigir os problemas encontrados e realizar o deploy no GitHub Pages.
+O objetivo foi implementar uma pipeline de segurança no GitHub Actions, identificar vulnerabilidades, corrigir os problemas encontrados e publicar a aplicação no GitHub Pages.
 
-O principal objetivo é aplicar o conceito de **Break the Build**, interrompendo a pipeline quando forem encontradas vulnerabilidades.
+O desafio utiliza o conceito de **Break the Build**, em que a pipeline é interrompida quando uma verificação de segurança encontra problemas.
 
 ## Status do desafio
 
 - [x] Implementar Gitleaks para detectar secrets
-- [x] Verificar o histórico Git com Gitleaks
+- [x] Verificar e limpar o histórico Git
 - [x] Configurar GitHub Actions Secrets
-- [x] Remover secrets do histórico Git
-- [x] Implementar Semgrep
-- [x] Corrigir o uso de `eval()`
-- [x] Implementar Grype
-- [x] Atualizar as dependências vulneráveis
-- [x] Corrigir a action vulnerável do GitHub Actions
-- [x] Validar Gitleaks, Semgrep e Grype
-- [x] Corrigir o uso de `innerHTML` com entrada do usuário
-- [x] Corrigir a exposição de `err.stack`
-- [x] Implementar assinatura real com Cosign
-- [x] Verificar a assinatura do artefato
-- [x] Finalizar o deploy no GitHub Pages
-
-Na execução **#17**, os dois jobs da pipeline foram concluídos com sucesso, incluindo as verificações de segurança, a assinatura do artefato e o deploy.
+- [x] Implementar Semgrep para análise estática
+- [x] Implementar Grype para análise de dependências
+- [x] Corrigir as vulnerabilidades encontradas
+- [x] Demonstrar o Break the Build
+- [x] Implementar assinatura e verificação com Cosign
+- [x] Publicar a aplicação no GitHub Pages
+- [x] Testar a aplicação publicada
 
 ## Pipeline
 
 O workflow está no arquivo `.github/workflows/pipeline.yml` e possui dois jobs:
 
-**Build, Segurança e Assinatura:** prepara os arquivos, executa os scanners, gera o artefato e realiza a assinatura digital.
+**Build, Segurança e Assinatura:** prepara a aplicação, executa as ferramentas de segurança, gera o artefato e realiza sua assinatura digital.
 
-**Verificação e Deploy:** recebe o artefato, verifica sua assinatura e publica a aplicação no GitHub Pages.
+**Verificação e Deploy:** verifica a assinatura do artefato antes de publicar a aplicação no GitHub Pages.
 
 ### 1. Gitleaks — Secrets Scanning
 
-O Gitleaks foi configurado para detectar credenciais expostas no repositório.
+O Gitleaks identifica credenciais e informações sensíveis expostas no código ou no histórico Git. É importante para evitar que secrets sejam publicados no repositório.
 
-Nos primeiros testes, encontrou duas ocorrências no `src/script.js` e bloqueou a pipeline.
+Nos primeiros testes, encontrou duas ocorrências no arquivo `src/script.js` e bloqueou a pipeline.
 
-Também foi adicionada uma verificação do histórico completo:
+Também foi configurada a análise do histórico completo:
 
 ```bash
 gitleaks git . --redact --exit-code 1
 ```
 
-Essa análise encontrou três ocorrências em commits antigos.
+Essa verificação encontrou três ocorrências em commits antigos.
 
-**Correção:** as credenciais foram substituídas por marcadores no JavaScript. Os valores de demonstração são configurados no GitHub Actions Secrets e inseridos durante a pipeline com `env` e `sed`.
+**Correções realizadas:**
 
-Como o JavaScript será público, foram utilizados apenas valores fictícios.
+- Substituição das credenciais por marcadores no JavaScript.
+- Configuração de valores fictícios no GitHub Actions Secrets.
+- Substituição dos marcadores durante o build utilizando `env` e `sed`.
+- Limpeza do histórico Git com `git-filter-repo`.
 
-Para remover os valores antigos do histórico, foi utilizado o `git-filter-repo`:
+O GitHub Actions Secrets permite configurar valores sensíveis fora do código-fonte. Neste projeto, foram utilizados apenas valores fictícios, pois o JavaScript publicado no GitHub Pages pode ser visualizado por qualquer pessoa.
+
+Comando utilizado para limpar o histórico:
 
 ```powershell
 git filter-repo --replace-text ..\substituicoes.txt --force
 ```
 
-Após a limpeza, as duas etapas do Gitleaks passaram.
+Após as correções, as duas verificações do Gitleaks passaram.
 
 ### 2. Semgrep — SAST
 
-O Semgrep foi configurado para analisar o código da aplicação:
+O Semgrep realiza análise estática do código (SAST), identificando padrões inseguros sem precisar executar a aplicação. É importante para encontrar possíveis vulnerabilidades antes que o código seja publicado.
+
+Foi configurado com o comando:
 
 ```bash
 semgrep scan --config auto --config p/xss --error src/
 ```
 
-No primeiro teste, encontrou o uso inseguro de `eval()` no arquivo `src/script.js`, bloqueando a pipeline.
+**Problema encontrado:** uso de `eval()` com entrada do usuário no `src/script.js`, permitindo a execução de código fornecido pelo usuário.
 
-**Antes:**
+Antes:
 
 ```javascript
 eval('console.log("Tarefa adicionada: ' + input.value + '")');
 ```
 
-**Depois:**
+Depois:
 
 ```javascript
 console.log('Tarefa adicionada:', input.value);
 ```
 
-Após a correção, o Semgrep analisou quatro arquivos com 218 regras e apresentou **0 findings**.
+A correção removeu a execução dinâmica de código.
+
+Após a alteração, o Semgrep analisou quatro arquivos com 218 regras e retornou **0 findings**.
 
 ### 3. Grype — SCA
 
-O Grype foi configurado para identificar vulnerabilidades nas dependências:
+O Grype identifica vulnerabilidades conhecidas nas dependências do projeto. Essa verificação é importante porque bibliotecas externas também podem apresentar riscos de segurança.
+
+Foi configurado para bloquear vulnerabilidades de severidade média ou superior:
 
 ```bash
 grype dir:. --fail-on medium
 ```
 
-O primeiro teste encontrou vulnerabilidades em bibliotecas como `lodash`, `axios`, `express` e suas dependências.
+**Problemas encontrados:** o primeiro teste identificou vulnerabilidades em `lodash`, `axios`, `express` e suas dependências.
 
-Para corrigir, as bibliotecas foram atualizadas, mantendo os pacotes do exercício:
+As bibliotecas foram atualizadas, mantendo os pacotes utilizados no exercício:
 
 ```bash
 npm install lodash@latest axios@latest express@latest --save-exact
 ```
 
-Depois da atualização, restou apenas um alerta relacionado à action `actions/download-artifact@v4`.
+Após essa correção, restou um alerta relacionado à action `actions/download-artifact@v4`.
 
 A referência foi atualizada para `actions/download-artifact@v4.1.3`.
 
@@ -110,21 +114,21 @@ Na execução **#14**, o Grype passou e continuou aprovado nas execuções segui
 
 ### 4. Correções adicionais no JavaScript
 
-Durante a revisão manual do `src/script.js`, foram identificados outros dois pontos de segurança que não haviam sido apontados pelo Semgrep.
+Durante a revisão manual do `src/script.js`, foram encontrados dois problemas que não haviam sido apontados pelo Semgrep.
 
-**Uso de `innerHTML`:** a entrada digitada pelo usuário era inserida diretamente no HTML da página, podendo permitir XSS.
+**Uso de `innerHTML`:** a entrada digitada pelo usuário era inserida diretamente no HTML, podendo permitir XSS.
 
-A correção foi utilizar `createElement()` e `textContent` para exibir o texto sem interpretá-lo como HTML.
+A correção foi utilizar `textContent` para tratar a entrada como texto:
 
 ```javascript
 const li = document.createElement('li');
-li.textContent = input.value;
-output.replaceChildren(li);
+li.textContent = tarefa;
+list.appendChild(li);
 ```
 
-**Exposição de `err.stack`:** os detalhes internos de erros eram exibidos diretamente na página.
+**Exposição de `err.stack`:** detalhes internos dos erros eram exibidos na página.
 
-A correção foi registrar o erro no console e mostrar uma mensagem simples ao usuário.
+A correção foi registrar o erro no console e mostrar uma mensagem simples ao usuário:
 
 ```javascript
 console.error('Erro ao carregar tarefas:', err);
@@ -133,13 +137,15 @@ document.getElementById('db-status').innerText =
     'Nao foi possivel carregar as tarefas.';
 ```
 
-Essas alterações foram realizadas como melhorias de segurança identificadas na revisão do código.
+Também foi corrigida a função `addTask()` para adicionar novas tarefas à lista correta, sem apagar as anteriores.
 
 ### 5. Artefato e Cosign
 
 Após as verificações de segurança, a pipeline gera o arquivo `artifact.tar` e seu hash SHA256.
 
-O artefato é assinado digitalmente com Cosign, utilizando a identidade do GitHub Actions (OIDC).
+O Cosign realiza a assinatura digital do artefato, permitindo verificar sua origem e integridade. Essa etapa é importante para impedir que um artefato alterado ou não autorizado seja publicado.
+
+A assinatura utiliza a identidade do GitHub Actions (OIDC):
 
 ```bash
 cosign sign-blob artifact.tar \
@@ -147,7 +153,7 @@ cosign sign-blob artifact.tar \
   --yes
 ```
 
-No segundo job, a assinatura é verificada antes da publicação:
+No segundo job, a assinatura é verificada antes do deploy:
 
 ```bash
 cosign verify-blob artifact.tar \
@@ -156,67 +162,86 @@ cosign verify-blob artifact.tar \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
 ```
 
-Se a verificação falhar, o deploy é bloqueado.
+Se a verificação falhar, a pipeline é interrompida e o deploy não acontece.
 
 Na execução **#17**, a assinatura e a verificação passaram com sucesso.
 
 ### 6. GitHub Pages
 
-O GitHub Pages foi configurado para publicar a aplicação por meio do GitHub Actions.
+O GitHub Pages foi utilizado para publicar a aplicação diretamente pelo GitHub Actions. Essa etapa permite disponibilizar o resultado da pipeline e validar o funcionamento da aplicação em produção.
 
-Inicialmente, o job de deploy falhava porque o Pages não estava configurado no repositório. Após ajustar essa configuração, o deploy passou a funcionar.
+Inicialmente, o deploy falhou porque o GitHub Pages não estava habilitado corretamente no repositório.
 
-Na execução **#17**, os dois jobs foram concluídos com sucesso, incluindo a verificação da assinatura e a publicação da aplicação.
+Após ajustar a configuração em **Settings → Pages → GitHub Actions**, o deploy passou a funcionar.
 
-## Evidências
+Na execução **#17**, os dois jobs foram concluídos com sucesso.
 
-As capturas de tela estão na pasta `evidencias/`.
+## Evidências dos erros e correções
+
+Os links abaixo registram as execuções em que a pipeline encontrou problemas e interrompeu o processo.
 
 ### Gitleaks
 
-**Detecção de secrets:** [Execução no GitHub Actions](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38061554071)
+**Detecção de secrets no código:** [Execução com erro](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38061554071)
 
 Commit do teste: [9aafa96](https://github.com/Mariars11/projeto-devsecop-desafio/commit/9aafa96bcfd33258690e3e0e2db628f18b182c11)
 
 ![Gitleaks detectando secrets](evidencias/gitleaks-deteccao.png)
 
-**Bloqueio por secrets no histórico:** [Execução no GitHub Actions](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38062953936)
+**Detecção de secrets no histórico Git:** [Execução com erro](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38062953936)
 
 ![Gitleaks bloqueando a pipeline](evidencias/gitleaks-historico-bloqueio.png)
 
 ### Semgrep
 
-**Detecção do `eval()`:** [Execução no GitHub Actions](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38060426096)
+**Erro encontrado:** uso inseguro de `eval()`.
 
-Commit do teste: [452d2f1](https://github.com/Mariars11/projeto-devsecop-desafio/commit/452d2f1725c20b062cd929611122a622f0374336)
+[Execução com erro — Semgrep](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38066141418/job/114254065420)
+
+Commit do teste: [1f6483a](https://github.com/Mariars11/projeto-devsecop-desafio/commit/1f6483a309d60e6e44449496d44954779a66abb6)
+
+**Correção:** substituição do `eval()` por `console.log()`.
 
 ### Grype
 
-**Detecção das dependências vulneráveis:** [Execução no GitHub Actions](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38060743966)
+**Erro encontrado:** dependências vulneráveis identificadas na análise SCA.
 
-Commit do teste: [3788e57](https://github.com/Mariars11/projeto-devsecop-desafio/commit/3788e57d038f6f0309e3ba9b3faf6854e4d1c4b6)
+[Execução com erro — Grype](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38068389630/job/114260605010)
+
+Commit do teste: [ecc28ac](https://github.com/Mariars11/projeto-devsecop-desafio/commit/ecc28ac3039cb1d3d4a28ab51c89ad5cf01b963c)
+
+**Correção:** atualização das dependências e da action `actions/download-artifact`.
 
 ### Gerenciamento de Secrets
 
-[Execução de teste no GitHub Actions](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38063731291)
+[Execução com bloqueio pelo histórico Git](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38063731291/job/114247041441)
 
-O step de substituição dos marcadores passou, mas o histórico ainda continha secrets. Depois da limpeza com `git-filter-repo`, o Gitleaks também passou.
+O step de substituição dos marcadores funcionou, mas o histórico ainda continha secrets. Após a limpeza com `git-filter-repo`, o Gitleaks passou.
 
 ### Cosign e Deploy
 
-**Execução:** [GitHub Actions — Pipeline #17](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38069937340)
+[Execução #17 — Pipeline aprovada](https://github.com/Mariars11/projeto-devsecop-desafio/actions/runs/38069937340)
 
-**Resultado:** assinatura real com Cosign, verificação do artefato e deploy no GitHub Pages aprovados.
+**Resultado:** verificações de segurança, assinatura digital, verificação do artefato e deploy aprovados.
 
 **Observação:** alguns links de commits antigos podem não funcionar após a reescrita do histórico Git. Foram mantidos como referência dos testes realizados.
 
+## Testes da aplicação
+
+Após a publicação no GitHub Pages, foram realizados testes na aplicação:
+
+- Adição de novas tarefas: funcionando.
+- Inclusão na lista correta, sem apagar tarefas anteriores: funcionando.
+- Teste de XSS: o HTML digitado foi exibido como texto, sem execução.
+- Console do navegador: nenhum erro identificado durante os testes.
+
+As tarefas adicionadas permanecem na página enquanto ela está aberta, mas não são armazenadas após uma atualização.
+
 ## Resultado final
 
-A pipeline foi concluída com as verificações de segurança Gitleaks, Semgrep e Grype, assinatura digital com Cosign e deploy no GitHub Pages.
+O conceito de **Break the Build** foi demonstrado durante os testes, quando Gitleaks, Semgrep e Grype identificaram problemas e bloquearam a pipeline.
 
-O conceito de **Break the Build** foi demonstrado durante os testes, quando as ferramentas identificaram vulnerabilidades e interromperam a execução.
-
-Após as correções, a pipeline **#17** foi aprovada.
+Após as correções, a execução **#17** foi concluída com sucesso, incluindo a assinatura com Cosign e o deploy no GitHub Pages.
 
 ## URL de produção
 
